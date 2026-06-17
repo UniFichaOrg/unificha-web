@@ -1,15 +1,12 @@
-import { useEffect, useState } from 'react';
-import { useAuth as useAuthContext } from '../context/AuthContext';
+import { useContext } from 'react';
+import { AuthContext } from '../context/AuthContext';
 
-function useAuth() {
-    const auth = useAuthContext();
-    const [initialized, setInitialized] = useState(false);
+export function useAuth() {
+    const context = useContext(AuthContext);
 
-    useEffect(() => {
-        setInitialized(true);
-    }, []);
+    if (!context) {
+        throw new Error('useAuth deve ser usado dentro de um AuthProvider');
+    }
 
-    return { ...auth, initialized };
+    return context;
 }
-
-export default useAuth;
