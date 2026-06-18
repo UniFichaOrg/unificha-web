@@ -15,7 +15,6 @@ export const AuthProvider = ({ children }) => {
                 const storedUser = localStorage.getItem('@UniFicha:user');
                 if (storedUser) {
                     const userData = JSON.parse(storedUser);
-                    // Validar se o token ainda é válido
                     const isValid = await authService.validateToken();
                     if (isValid) {
                         setUser(userData);
@@ -39,25 +38,29 @@ export const AuthProvider = ({ children }) => {
     const signIn = async (credentials) => {
         try {
             setError(null);
-            const userData = await authService.login(credentials.login, credentials.senha);
-            
-            // Armazenar dados do usuário (sem senha)
+            const authData = await authService.login(credentials.login, credentials.senha, credentials.idMaquina);
+
+            const userData = authData.user;
+
             const userToStore = {
                 id: userData.id,
-                nome_completo: userData.nome_completo,
-                nome_social: userData.nome_social,
+                nomeCompleto: userData.nomeCompleto,
+                nomeSocial: userData.nomeSocial,
                 email: userData.email,
                 cpf: userData.cpf,
                 perfis: userData.perfis,
             };
-            
+
             setUser(userToStore);
             localStorage.setItem('@UniFicha:user', JSON.stringify(userToStore));
-            
+            if (authData.token) {
+                localStorage.setItem('@UniFicha:token', authData.token);
+            }
+
             return userToStore;
         } catch (err) {
-            const message = err instanceof ApiError 
-                ? err.message 
+            const message = err instanceof ApiError
+                ? err.message
                 : 'Erro ao fazer login';
             setError(message);
             throw err;

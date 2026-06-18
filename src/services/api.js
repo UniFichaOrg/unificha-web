@@ -8,6 +8,15 @@ class ApiError extends Error {
     }
 }
 
+function getMachineId() {
+    let id = localStorage.getItem('@UniFicha:machine_id');
+    if (!id) {
+        id = crypto.randomUUID();
+        localStorage.setItem('@UniFicha:machine_id', id);
+    }
+    return id;
+}
+
 function getAuthToken() {
     return localStorage.getItem('@UniFicha:token');
 }
@@ -22,8 +31,10 @@ function setAuthToken(token) {
 
 export async function request(path, options = {}) {
     const token = getAuthToken();
+    const machineId = getMachineId();
     const headers = {
         'Content-Type': 'application/json',
+        'x-machine-id': machineId,
         ...options.headers,
     };
 

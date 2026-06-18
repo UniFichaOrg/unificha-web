@@ -2,11 +2,11 @@ import { post, patch, get, setAuthToken, del } from './api.js';
 
 export async function login(login, senha) {
     const response = await post('/auth/login', { login, senha });
-    
+
     if (response.data?.token) {
         setAuthToken(response.data.token);
     }
-    
+
     return response.data;
 }
 
@@ -20,20 +20,20 @@ export async function logout() {
 
 export async function register(userData) {
     const response = await post('/usuarios/', {
-        nome_completo: userData.nomeCompleto,
-        nome_social: userData.nomeSocial,
+        nomeCompleto: userData.nomeCompleto,
+        nomeSocial: userData.nomeSocial,
         login: userData.login,
+        senha: userData.senha,
+        email: userData.email,
         cpf: userData.cpf,
         cns: userData.cns,
-        email: userData.email,
-        senha: userData.senha,
+        cep: userData.cep,
         logradouro: userData.logradouro,
         bairro: userData.bairro,
-        cep: userData.cep,
         municipio: userData.municipio,
         uf: userData.uf,
     });
-    
+
     return response.data;
 }
 
@@ -45,7 +45,7 @@ export async function getCurrentUser() {
 export async function validateToken() {
     try {
         const response = await get('/auth/validate-token');
-        return response.status === 'success';
+        return response && response.status === 'success';
     } catch {
         return false;
     }

@@ -10,6 +10,7 @@ import {
     validateCEP,
     validateUF
 } from "../utils/validators.js";
+import { formatCPF, formatCNS, formatCEP } from "../utils/formatters.js";
 import { AuthShell } from "../components/AuthShell";
 import { CheckCircle2, Eye, EyeOff, Loader } from "lucide-react";
 
@@ -41,26 +42,101 @@ export default function Register() {
         uf: ""
     });
 
+    const validateField = (name, value) => {
+        let errorMsg = "";
+
+        switch (name) {
+            case "nomeCompleto":
+                if (!value.trim()) errorMsg = "Nome completo é obrigatório";
+                break;
+            case "login":
+                if (!value.trim()) errorMsg = "Login é obrigatório";
+                else if (value.trim().length < 3) errorMsg = "Login deve ter no mínimo 3 caracteres";
+                break;
+            case "email":
+                if (!value.trim()) errorMsg = "E-mail é obrigatório";
+                else if (!validateEmail(value)) errorMsg = "E-mail inválido";
+                break;
+            case "senha":
+                if (!value) errorMsg = "Senha é obrigatória";
+                else if (!validatePassword(value)) errorMsg = "Senha deve ter no mínimo 8 caracteres";
+                break;
+            case "confirmarSenha":
+                if (!value) errorMsg = "Confirmação de senha é obrigatória";
+                else if (value !== form.senha) errorMsg = "As senhas não conferem";
+                break;
+            case "cpf":
+                if (!value) errorMsg = "CPF é obrigatório";
+                else if (!validateCPF(value)) errorMsg = "CPF inválido ou incompleto";
+                break;
+            case "cns":
+                if (!value) errorMsg = "CNS é obrigatório";
+                else if (!validateCNS(value)) errorMsg = "CNS inválido (deve conter 15 dígitos)";
+                break;
+            case "cep":
+                if (!value) errorMsg = "CEP é obrigatório";
+                else if (!validateCEP(value)) errorMsg = "CEP inválido (deve conter 8 dígitos)";
+                break;
+            case "logradouro":
+                if (!value.trim()) errorMsg = "Logradouro é obrigatório";
+                break;
+            case "bairro":
+                if (!value.trim()) errorMsg = "Bairro é obrigatório";
+                break;
+            case "municipio":
+                if (!value.trim()) errorMsg = "Município é obrigatório";
+                break;
+            case "uf":
+                if (!value.trim()) errorMsg = "UF é obrigatória";
+                else if (!validateUF(value)) errorMsg = "UF inválida";
+                break;
+            default:
+                break;
+        }
+
+        setFieldErrors(prev => ({ ...prev, [name]: errorMsg }));
+    };
+
     const validateForm = () => {
         const errors = {};
         if (!form.nomeCompleto.trim()) errors.nomeCompleto = "Nome completo é obrigatório";
         if (!form.login.trim()) errors.login = "Login é obrigatório";
-        if (!validateEmail(form.email)) errors.email = "E-mail inválido";
-        if (!validatePassword(form.senha)) errors.senha = "Senha deve ter no mínimo 8 caracteres";
-        if (form.senha !== form.confirmarSenha) errors.confirmarSenha = "As senhas não conferem";
-        if (!validateCPF(form.cpf)) errors.cpf = "CPF deve ter 11 dígitos";
-        if (!validateCNS(form.cns)) errors.cns = "CNS deve ter 15 dígitos";
-        if (!validateCEP(form.cep)) errors.cep = "CEP deve ter 8 dígitos";
+        else if (form.login.trim().length < 3) errors.login = "Login deve ter no mínimo 3 caracteres";
+
+        if (!form.email.trim()) errors.email = "E-mail é obrigatório";
+        else if (!validateEmail(form.email)) errors.email = "E-mail inválido";
+
+        if (!form.senha) errors.senha = "Senha é obrigatória";
+        else if (!validatePassword(form.senha)) errors.senha = "Senha deve ter no mínimo 8 caracteres";
+
+        if (!form.confirmarSenha) errors.confirmarSenha = "Confirmação de senha é obrigatória";
+        else if (form.senha !== form.confirmarSenha) errors.confirmarSenha = "As senhas não conferem";
+
+        if (!form.cpf) errors.cpf = "CPF é obrigatório";
+        else if (!validateCPF(form.cpf)) errors.cpf = "CPF inválido";
+
+        if (!form.cns) errors.cns = "CNS é obrigatório";
+        else if (!validateCNS(form.cns)) errors.cns = "CNS inválido";
+
+        if (!form.cep) errors.cep = "CEP é obrigatório";
+        else if (!validateCEP(form.cep)) errors.cep = "CEP inválido";
+
         if (!form.logradouro.trim()) errors.logradouro = "Logradouro é obrigatório";
         if (!form.bairro.trim()) errors.bairro = "Bairro é obrigatório";
         if (!form.municipio.trim()) errors.municipio = "Município é obrigatório";
-        if (!validateUF(form.uf)) errors.uf = "UF inválido";
+
+        if (!form.uf.trim()) errors.uf = "UF é obrigatória";
+        else if (!validateUF(form.uf)) errors.uf = "UF inválida";
+
         return errors;
     };
 
-    const handleCEPChange = async (cepValue) => {
-        const cleanCEP = cepValue.replace(/\D/g, "");
+    const handleCEPChange = async (e) => {
+        const rawValue = e.target.value;
+        const cleanCEP = rawValue.replace(/\D/g, "").slice(0, 8);
+
         setForm(prev => ({ ...prev, cep: cleanCEP }));
+        if (fieldErrors.cep) setFieldErrors(prev => ({ ...prev, cep: "" }));
 
         if (cleanCEP.length === 8) {
             setCepLoading(true);
@@ -77,14 +153,37 @@ export default function Register() {
                         municipio: data.localidade || "",
                         uf: data.uf || ""
                     }));
-                    setFieldErrors(prev => ({ ...prev, cep: "" }));
+                    setFieldErrors(prev => ({ ...prev, cep: "", logradouro: "", bairro: "", municipio: "", uf: "" }));
                 }
             } catch (err) {
                 console.error("Erro ao buscar CEP:", err);
+                setFieldErrors(prev => ({ ...prev, cep: "Erro ao buscar CEP remoto" }));
             } finally {
                 setCepLoading(false);
             }
         }
+    };
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        let finalValue = value;
+
+        if (name === "cpf" || name === "cns") {
+            finalValue = value.replace(/\D/g, "");
+        }
+        if (name === "uf") {
+            finalValue = value.toUpperCase().slice(0, 2);
+        }
+
+        setForm(prev => ({ ...prev, [name]: finalValue }));
+        if (fieldErrors[name]) {
+            setFieldErrors(prev => ({ ...prev, [name]: "" }));
+        }
+    };
+
+    const handleBlur = (e) => {
+        const { name, value } = e.target;
+        validateField(name, value);
     };
 
     const handleSubmit = async (e) => {
@@ -110,14 +209,6 @@ export default function Register() {
         }
     };
 
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setForm(prev => ({ ...prev, [name]: value }));
-        if (fieldErrors[name]) {
-            setFieldErrors(prev => ({ ...prev, [name]: "" }));
-        }
-    };
-
     return (
         <AuthShell
             title="Criar sua conta"
@@ -131,14 +222,13 @@ export default function Register() {
                 </span>
             }
         >
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-5" noValidate>
                 {error && (
                     <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm font-medium text-red-700">
                         {error}
                     </div>
                 )}
 
-                {/* Bloco 1: Dados Pessoais - Cor Accent (Azul) */}
                 <Section title="Dados pessoais" colorClass="text-accent border-accent/20">
                     <Row>
                         <Field
@@ -146,6 +236,7 @@ export default function Register() {
                             name="nomeCompleto"
                             value={form.nomeCompleto}
                             onChange={handleInputChange}
+                            onBlur={handleBlur}
                             disabled={loading}
                             placeholder="Maria Aparecida Silva"
                             error={fieldErrors.nomeCompleto}
@@ -165,9 +256,10 @@ export default function Register() {
                         <Field
                             label="CPF"
                             name="cpf"
-                            maxLength={11}
-                            value={form.cpf}
-                            onChange={e => handleInputChange({ target: { name: "cpf", value: e.target.value.replace(/\D/g, "") } })}
+                            maxLength={14}
+                            value={formatCPF(form.cpf)}
+                            onChange={handleInputChange}
+                            onBlur={handleBlur}
                             disabled={loading}
                             placeholder="000.000.000-00"
                             mono
@@ -177,9 +269,10 @@ export default function Register() {
                         <Field
                             label="CNS · Cartão SUS"
                             name="cns"
-                            maxLength={15}
-                            value={form.cns}
-                            onChange={e => handleInputChange({ target: { name: "cns", value: e.target.value.replace(/\D/g, "") } })}
+                            maxLength={18}
+                            value={formatCNS(form.cns)}
+                            onChange={handleInputChange}
+                            onBlur={handleBlur}
                             disabled={loading}
                             placeholder="000 0000 0000 0000"
                             mono
@@ -194,6 +287,7 @@ export default function Register() {
                             name="email"
                             value={form.email}
                             onChange={handleInputChange}
+                            onBlur={handleBlur}
                             disabled={loading}
                             placeholder="voce@email.com"
                             error={fieldErrors.email}
@@ -204,6 +298,7 @@ export default function Register() {
                             name="login"
                             value={form.login}
                             onChange={handleInputChange}
+                            onBlur={handleBlur}
                             disabled={loading}
                             placeholder="maria.silva"
                             error={fieldErrors.login}
@@ -212,16 +307,15 @@ export default function Register() {
                     </Row>
                 </Section>
 
-                {/* Bloco 2: Endereço - Cor Primary (Teal) */}
-                {/* Linhas customizadas com larguras proporcionais para evitar texto escondido no desktop */}
                 <Section title="Endereço" colorClass="text-primary border-primary/20">
-                    <div className="grid gap-3 sm:grid-cols-[130px_1fr]">
+                    <div className="grid gap-3 sm:grid-cols-[140px_1fr]">
                         <Field
                             label="CEP"
                             name="cep"
-                            maxLength={8}
-                            value={form.cep}
-                            onChange={e => handleCEPChange(e.target.value)}
+                            maxLength={9}
+                            value={formatCEP(form.cep)}
+                            onChange={handleCEPChange}
+                            onBlur={handleBlur}
                             disabled={loading || cepLoading}
                             placeholder="00000-000"
                             mono
@@ -234,6 +328,7 @@ export default function Register() {
                             name="logradouro"
                             value={form.logradouro}
                             onChange={handleInputChange}
+                            onBlur={handleBlur}
                             disabled={loading}
                             placeholder="Rua, número, apartamento"
                             error={fieldErrors.logradouro}
@@ -246,6 +341,7 @@ export default function Register() {
                             name="bairro"
                             value={form.bairro}
                             onChange={handleInputChange}
+                            onBlur={handleBlur}
                             disabled={loading}
                             placeholder="Centro"
                             error={fieldErrors.bairro}
@@ -256,6 +352,7 @@ export default function Register() {
                             name="municipio"
                             value={form.municipio}
                             onChange={handleInputChange}
+                            onBlur={handleBlur}
                             disabled={loading}
                             placeholder="Natal"
                             error={fieldErrors.municipio}
@@ -267,6 +364,7 @@ export default function Register() {
                             maxLength={2}
                             value={form.uf}
                             onChange={handleInputChange}
+                            onBlur={handleBlur}
                             disabled={loading}
                             placeholder="RN"
                             mono
@@ -276,7 +374,6 @@ export default function Register() {
                     </div>
                 </Section>
 
-                {/* Bloco 3: Configurações de Acesso - Cor Verde */}
                 <Section title="Acesso" colorClass="text-green border-green/20">
                     <Row>
                         <Field
@@ -285,6 +382,7 @@ export default function Register() {
                             name="senha"
                             value={form.senha}
                             onChange={handleInputChange}
+                            onBlur={handleBlur}
                             disabled={loading}
                             placeholder="Mínimo 8 caracteres"
                             error={fieldErrors.senha}
@@ -301,6 +399,7 @@ export default function Register() {
                             name="confirmarSenha"
                             value={form.confirmarSenha}
                             onChange={handleInputChange}
+                            onBlur={handleBlur}
                             disabled={loading}
                             placeholder="Repita sua senha"
                             error={fieldErrors.confirmarSenha}
@@ -338,7 +437,7 @@ export default function Register() {
     );
 }
 
-/* Componentes Estruturais Internos Modificados */
+/* Componentes Estruturais Internos */
 function Section({ title, colorClass = "text-muted-foreground border-border", children }) {
     return (
         <div className="space-y-3 pt-2">
@@ -359,6 +458,7 @@ function Field({
                    name,
                    value,
                    onChange,
+                   onBlur,
                    disabled,
                    placeholder,
                    maxLength,
@@ -380,10 +480,15 @@ function Field({
                     name={name}
                     value={value}
                     onChange={onChange}
+                    onBlur={onBlur}
                     disabled={disabled}
                     placeholder={placeholder}
                     maxLength={maxLength}
-                    className={`w-full rounded-xl border border-border bg-card pl-3.5 pr-10 py-2.5 text-sm outline-none transition placeholder:text-muted-foreground/60 focus:border-primary focus:ring-2 focus:ring-primary/15 ${mono ? "font-mono" : ""}`}
+                    className={`w-full rounded-xl border bg-card pl-3.5 pr-10 py-2.5 text-sm outline-none transition placeholder:text-muted-foreground/60 ${
+                        error
+                            ? "border-destructive focus:border-destructive focus:ring-2 focus:ring-destructive/15"
+                            : "border-border focus:border-primary focus:ring-2 focus:ring-primary/15"
+                    } ${mono ? "font-mono" : ""}`}
                 />
                 {icon && (
                     <div className="absolute right-3.5 flex items-center justify-center">
